@@ -1,44 +1,51 @@
-from sklearn.svm import SVR
-from sklearn.linear_model import LinearRegression
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import confusion_matrix, classification_report
+import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 
+data = load_breast_cancer()
+X = data.data
+y = data.target
 
-y_scaler = StandardScaler()
-y_train_scaled = y_scaler.fit_transform(y_train.reshape(-1,1)).ravel()
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
 
 models = {
-    "Linear Regression": LinearRegression(),
-    "SVR Linear": SVR(kernel='linear', C=1000),
-    "SVR Polynomial": SVR(kernel='poly', degree=3, C=1000),
-    "SVR RBF": SVR(kernel='rbf', C=1000, gamma=0.1)
+    "SVM Linear": SVC(kernel='linear'),
+    "SVM Polynomial": SVC(kernel='poly', degree=3),
+    "SVM RBF": SVC(kernel='rbf'),
+    "Logistic Regression": LogisticRegression(max_iter=5000)
 }
 
 results = []
 
 for name, model in models.items():
-    if name == "Linear Regression":
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-    else:
-        model.fit(X_train, y_train_scaled)
-        y_pred_scaled = model.predict(X_test)
-        y_pred = y_scaler.inverse_transform(y_pred_scaled.reshape(-1,1)).ravel()
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
 
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-    results.append([name, mse, r2])
+    results.append([
+        name,
+        model.score(X_test, y_test)
+    ])
 
-
-    plt.figure(figsize=(5,4))
-    plt.scatter(y_test, y_pred, alpha=0.6)
-    plt.xlabel("Actual Price")
-    plt.ylabel("Predicted Price")
-    plt.title(f"Actual vs Predicted - {name}")
-    plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--')
+    cm = confusion_matrix(y_test, y_pred)
+    plt.figure(figsize=(4,3))
+    sns.heatmap(cm, annot=True, cmap="Blues", fmt="d")
+    plt.title(f"Confusion Matrix - {name}")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
     plt.show()
 
-results_df = pd.DataFrame(results, columns=["Model", "MSE", "R² Score"])
+    print(f"\n{name} Classification Report:")
+    print(classification_report(y_test, y_pred))
+
+results_df = pd.DataFrame(results, columns=["Model", "Accuracy"])
 display(results_df)
